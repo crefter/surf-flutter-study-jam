@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_chat_bubble/bubble_type.dart';
+import 'package:flutter_chat_bubble/chat_bubble.dart';
+import 'package:flutter_chat_bubble/clippers/chat_bubble_clipper_1.dart';
 import 'package:surf_practice_chat_flutter/core/colors.dart';
 import 'package:surf_practice_chat_flutter/core/consts.dart';
 import 'package:surf_practice_chat_flutter/features/chat/bloc/adding/attach_bloc.dart';
 import 'package:surf_practice_chat_flutter/features/chat/bloc/chat/chat_bloc.dart';
 import 'package:surf_practice_chat_flutter/features/chat/consts.dart';
+import 'package:surf_practice_chat_flutter/features/chat/models/chat_geolocation_geolocation_dto.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_message_dto.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_message_location_dto.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_mode.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_user_dto.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_user_local_dto.dart';
-import 'package:surf_practice_chat_flutter/features/chat/repository/chat_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/repository/geolocation_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/chat_add_something.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/floating_action_button_widget.dart';
@@ -20,12 +23,10 @@ import 'package:surf_practice_chat_flutter/features/chat/service/user_color_serv
 /// Main screen of chat app, containing messages.
 class ChatScreen extends StatefulWidget {
   /// Repository for chat functionality.
-  final IChatRepository chatRepository;
   final UserColorService colorService;
 
   /// Constructor for [ChatScreen].
   const ChatScreen({
-    required this.chatRepository,
     Key? key,
     required this.colorService,
   }) : super(key: key);
@@ -36,6 +37,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _nameEditingController = TextEditingController();
+  final _chatEditingController = TextEditingController();
   final _geolocationRepository = GeolocationRepository();
   late final ScrollController _scrollController;
   bool _isVisible = true;
@@ -75,60 +77,53 @@ class _ChatScreenState extends State<ChatScreen> {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (context) =>
-              ChatBloc(widget.chatRepository, _geolocationRepository),
-        ),
-        BlocProvider(
           create: (context) => AttachBloc(_geolocationRepository),
         ),
       ],
       child: Scaffold(
-          floatingActionButton: Padding(
-            padding: const EdgeInsets.only(bottom: 70.0),
-            child: _isVisible
-                ? FloatingActionButtonWidget(
-                    scrollController: _scrollController)
-                : null,
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 70.0),
+          child: _isVisible
+              ? FloatingActionButtonWidget(scrollController: _scrollController)
+              : null,
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        backgroundColor: colorScheme.background,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(ChatConsts.heightAppBar),
+          child: _ChatAppBar(
+            controller: _nameEditingController,
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          backgroundColor: colorScheme.background,
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(ChatConsts.heightAppBar),
-            child: _ChatAppBar(
-              controller: _nameEditingController,
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _ChatBody(
+                userColorService: widget.colorService,
+                scrollController: _scrollController,
+              ),
             ),
-          ),
-          body: Builder(builder: (ctx) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _ChatBody(
-                    userColorService: widget.colorService,
-                    scrollController: _scrollController,
-                    messages: ctx.watch<ChatBloc>().state.currentMessages,
-                  ),
-                ),
-                BlocBuilder<ChatBloc, ChatState>(builder: (context, state) {
-                  context.read<AttachBloc>().add(const AttachEvent.restore());
-                  return state is ChatMessage
-                      ? _ChatTextField()
-                      : ChatAddSomething();
-                }),
-              ],
-            );
-          })),
+            BlocBuilder<ChatBloc, ChatState>(builder: (context, state) {
+              context.read<AttachBloc>().add(const AttachEvent.restore());
+              return state is ChatMessage
+                  ? _ChatTextField(
+                      textEditingController: _chatEditingController,
+                    )
+                  : ChatAddSomething();
+            }),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _ChatBody extends StatelessWidget {
-  final Iterable<ChatMessageDto> messages;
   final ScrollController _scrollController;
   final UserColorService _userColorService;
 
   const _ChatBody({
-    required this.messages,
     Key? key,
     required ScrollController scrollController,
     required UserColorService userColorService,
@@ -138,23 +133,34 @@ class _ChatBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: messages.length,
-      itemBuilder: (_, index) => _ChatMessage(
-        userColorService: _userColorService,
-        chatData: messages.elementAt(index),
-      ),
+    return BlocBuilder<ChatBloc, ChatState>(
+      builder: (context, state) {
+        return state.currentMessages.isNotEmpty
+            ? ListView.builder(
+                padding: EdgeInsets.only(bottom: 10),
+                controller: _scrollController,
+                itemCount: state.currentMessages.length,
+                itemBuilder: (_, index) => _ChatMessage(
+                  userColorService: _userColorService,
+                  chatData: state.currentMessages.elementAt(index),
+                ),
+              )
+            : const Center(
+                child: CircularProgressIndicator(),
+              );
+      },
     );
   }
 }
 
 class _ChatTextField extends StatelessWidget {
-  final _textEditingController = TextEditingController();
+  final TextEditingController _textEditingController;
 
-  _ChatTextField({
+  const _ChatTextField({
     Key? key,
-  }) : super(key: key);
+    required TextEditingController textEditingController,
+  })  : _textEditingController = textEditingController,
+        super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +172,7 @@ class _ChatTextField extends StatelessWidget {
       elevation: ChatConsts.elevationTextFiled,
       child: Padding(
         padding: EdgeInsets.only(
+          top: ChatConsts.topTextFieldPadding,
           bottom: mediaQuery.padding.bottom + ChatConsts.bottomTextFieldPadding,
           left: ChatConsts.leftTextFieldPadding,
         ),
@@ -181,16 +188,38 @@ class _ChatTextField extends StatelessWidget {
                         );
                   }
                 },
-                child: TextField(
-                  controller: _textEditingController,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderSide: const BorderSide(),
-                      borderRadius: BorderRadius.circular(
-                        AppConsts.textFormFieldBorderRadius,
+                child: BlocConsumer<ChatBloc, ChatState>(
+                  listenWhen: (prev, curr) => prev != curr,
+                  listener: (context, state) {
+                    if (state.message.isNotEmpty) {
+                      _textEditingController.text = state.message;
+                    }
+                  },
+                  builder: (context, state) => Stack(
+                    children: [
+                      TextField(
+                        controller: _textEditingController,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderSide: const BorderSide(),
+                            borderRadius: BorderRadius.circular(
+                              AppConsts.textFormFieldBorderRadius,
+                            ),
+                          ),
+                          hintText: 'Сообщение',
+                        ),
                       ),
-                    ),
-                    hintText: 'Сообщение',
+                      state.geolocationDto != ChatGeolocationDto.empty()
+                          ? const Positioned(
+                              top: AppConsts.one,
+                              right: AppConsts.zero,
+                              child: Icon(
+                                Icons.location_on,
+                                color: AppColors.green,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ],
                   ),
                 ),
               ),
@@ -201,6 +230,7 @@ class _ChatTextField extends StatelessWidget {
               },
               icon: const Icon(
                 Icons.attach_file,
+                color: AppColors.green,
               ),
               color: colorScheme.onSurface,
             ),
@@ -211,7 +241,10 @@ class _ChatTextField extends StatelessWidget {
                     .add(ChatEvent.sendMessage(_textEditingController.text));
                 _textEditingController.text = "";
               },
-              icon: const Icon(Icons.send),
+              icon: const Icon(
+                Icons.send,
+                color: AppColors.green,
+              ),
               color: colorScheme.onSurface,
             ),
           ],
@@ -236,10 +269,15 @@ class _ChatAppBar extends StatelessWidget {
       title: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          IconButton(
-            onPressed: () =>
-                context.read<ChatBloc>().add(const ChatEvent.update()),
-            icon: const Icon(Icons.refresh),
+          BlocBuilder<ChatBloc, ChatState>(
+            builder: (context, state) {
+              return IconButton(
+                onPressed: () => context
+                    .read<ChatBloc>()
+                    .add(ChatEvent.update(state.chatId)),
+                icon: const Icon(Icons.refresh),
+              );
+            },
           ),
         ],
       ),
@@ -260,40 +298,53 @@ class _ChatMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: chatData.chatUserDto is ChatUserLocalDto
-          ? colorScheme.primary.withOpacity(.1)
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: ChatConsts.chatMessagePadding,
-          vertical: ChatConsts.chatMessagePadding,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ChatAvatar(
-              userData: chatData.chatUserDto,
-              colorService: userColorService,
-            ),
-            const SizedBox(width: ChatConsts.gapBetweenUserAvatarAndMessage),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    chatData.chatUserDto.name ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: ChatConsts.defaultGapBetweenWidgets),
-                  chatData is ChatMessageGeolocationDto
-                      ? _MessageAndGeolocation(
-                          chatData: chatData as ChatMessageGeolocationDto)
-                      : _OnlyMessage(chatData: chatData),
-                ],
+    return ChatBubble(
+      margin: const EdgeInsets.only(top: 20),
+      alignment: chatData.chatUserDto is ChatUserLocalDto
+          ? Alignment.topRight
+          : Alignment.topLeft,
+      clipper: chatData.chatUserDto is ChatUserLocalDto
+          ? ChatBubbleClipper1(type: BubbleType.sendBubble)
+          : ChatBubbleClipper1(type: BubbleType.receiverBubble),
+      backGroundColor: chatData.chatUserDto is ChatUserLocalDto
+          ? colorScheme.primary
+          : AppColors.teal,
+      child: Container(
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+        child: Padding(
+          padding: const EdgeInsets.only(
+            top: ChatConsts.chatMessagePadding,
+            left: ChatConsts.chatMessagePadding,
+            right: ChatConsts.chatMessagePadding,
+            bottom: AppConsts.zero,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ChatAvatar(
+                userData: chatData.chatUserDto,
+                colorService: userColorService,
               ),
-            ),
-          ],
+              const SizedBox(width: ChatConsts.gapBetweenUserAvatarAndMessage),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      chatData.chatUserDto.name ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: AppConsts.defaultGapBetweenWidgets),
+                    chatData is ChatMessageGeolocationDto
+                        ? _MessageAndGeolocation(
+                            chatData: chatData as ChatMessageGeolocationDto)
+                        : _OnlyMessage(chatData: chatData),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -310,16 +361,17 @@ class _MessageAndGeolocation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(chatData.message ?? ''),
         const SizedBox(
-          height: ChatConsts.defaultGapBetweenWidgets,
+          height: AppConsts.defaultGapBetweenWidgets,
         ),
         const Text("К этому сообщение приклеплена геометка:"),
         Text("Долгота: ${chatData.location.longitude.toStringAsFixed(2)}\n "
             "Широта: ${chatData.location.latitude.toStringAsFixed(2)}"),
         const SizedBox(
-          height: ChatConsts.defaultGapBetweenWidgets,
+          height: AppConsts.defaultGapBetweenWidgets * 3,
         ),
         Stack(
           children: [
@@ -329,14 +381,20 @@ class _MessageAndGeolocation extends StatelessWidget {
                 onPressed: () {
                   context.read<ChatBloc>().add(ChatEvent.openMap(chatData));
                 },
-                child: const Text("Открыть на карте"),
+                child: Text(
+                  "Открыть на карте",
+                  style: Theme.of(context)
+                      .textTheme
+                      .button!
+                      .copyWith(color: AppColors.red),
+                ),
               ),
             ),
             const Positioned(
               left: ChatConsts.offsetOpenMapPicture,
               child: Icon(
                 Icons.zoom_out_map,
-                color: AppColors.green,
+                color: AppColors.red,
               ),
             ),
           ],
@@ -381,8 +439,9 @@ class _ChatAvatar extends StatelessWidget {
       if (userData.name!.isNotEmpty) {
         final split = userData.name?.split(' ');
         firstLetter = split!.first[0];
-        if (split.last.isNotEmpty && split.first != split.last)
+        if (split.last.isNotEmpty && split.first != split.last) {
           secondLetter = split.last[0];
+        }
       }
     }
     return SizedBox(
