@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:surf_practice_chat_flutter/core/consts.dart';
 import 'package:surf_practice_chat_flutter/features/auth/consts.dart';
 import '../colors.dart' as colors;
 
@@ -71,7 +72,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
               width: 3,
             ),
             borderRadius: BorderRadius.all(
-                Radius.circular(AuthConsts.textFormFieldBorderRadius)),
+                Radius.circular(AppConsts.textFormFieldBorderRadius)),
           ),
         ),
       ),

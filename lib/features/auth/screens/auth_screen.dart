@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:surf_practice_chat_flutter/core/consts.dart';
 import 'package:surf_practice_chat_flutter/features/auth/consts.dart';
 import 'package:surf_practice_chat_flutter/features/auth/models/token_dto.dart';
 import 'package:surf_practice_chat_flutter/features/auth/screens/widgets/auth_text_field.dart';
@@ -78,8 +79,8 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           const Padding(
                             padding: EdgeInsets.only(
-                              left: AuthConsts.padding8_0,
-                              right: AuthConsts.padding8_0,
+                              left: AppConsts.padding8_0,
+                              right: AppConsts.padding8_0,
                             ),
                             child: Icon(
                               Icons.error,

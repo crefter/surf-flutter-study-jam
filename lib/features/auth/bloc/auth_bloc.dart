@@ -19,7 +19,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ITokenRepository _tokenRepository;
 
   AuthBloc(this._authRepository, this._tokenRepository)
-      : super(AuthState.notAuth()) {
+      : super(const AuthState.notAuth()) {
     on<AuthEvent>((event, emit) async {
       await event.map<Future<void>>(
         logIn: (event) => _logIn(event, emit),
