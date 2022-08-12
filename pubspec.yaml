@@ -11,7 +11,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  surf_study_jam: ^0.2.0
+  surf_study_jam: ^0.2.0+1
 
   cupertino_icons: ^1.0.2
   flutter_bloc: ^8.0.1
@@ -22,6 +22,7 @@ dependencies:
   url_launcher: ^6.1.5
   permission_handler: ^10.0.0
   shared_preferences: ^2.0.15
+  flutter_chat_bubble: ^2.0.0
 
 dev_dependencies:
   flutter_test:
