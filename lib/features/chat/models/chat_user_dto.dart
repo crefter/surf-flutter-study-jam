@@ -12,6 +12,8 @@ class ChatUserDto {
     required this.name,
   });
 
+  factory ChatUserDto.empty() => const ChatUserDto(name: "");
+
   /// Factory-like constructor for converting DTO from [StudyJamClient].
   ChatUserDto.fromSJClient(SjUserDto sjUserDto) : name = sjUserDto.username;
 

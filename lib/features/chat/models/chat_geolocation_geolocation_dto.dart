@@ -14,6 +14,8 @@ class ChatGeolocationDto {
     required this.longitude,
   });
 
+  factory ChatGeolocationDto.empty() => ChatGeolocationDto(latitude: 0, longitude: 0);
+
   /// Named constructor for converting DTO from [StudyJamClient].
   ChatGeolocationDto.fromGeoPoint(List<double> geopoint)
       : latitude = geopoint[0],
@@ -23,4 +25,15 @@ class ChatGeolocationDto {
 
   /// Transforms dto to `List`.
   List<double> toGeopoint() => [latitude, longitude];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatGeolocationDto &&
+          runtimeType == other.runtimeType &&
+          latitude == other.latitude &&
+          longitude == other.longitude;
+
+  @override
+  int get hashCode => latitude.hashCode ^ longitude.hashCode;
 }
