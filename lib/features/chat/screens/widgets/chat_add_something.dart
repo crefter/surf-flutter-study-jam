@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:surf_practice_chat_flutter/features/chat/bloc/adding/adding_bloc.dart';
+import 'package:surf_practice_chat_flutter/features/chat/bloc/adding/attach_bloc.dart';
 import 'package:surf_practice_chat_flutter/features/chat/bloc/chat/chat_bloc.dart';
 
 class ChatAddSomething extends StatelessWidget {
@@ -32,8 +32,8 @@ class ChatAddSomething extends StatelessWidget {
                 ),
                 onPressed: () {
                   context
-                      .read<AddingBloc>()
-                      .add(const AddingEvent.pickGeolocation());
+                      .read<AttachBloc>()
+                      .add(const AttachEvent.pickGeolocation());
                   context.read<ChatBloc>().add(const ChatEvent.back());
                 },
                 child: Column(

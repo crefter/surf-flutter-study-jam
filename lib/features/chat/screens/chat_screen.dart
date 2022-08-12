@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:surf_practice_chat_flutter/core/colors.dart';
 import 'package:surf_practice_chat_flutter/core/consts.dart';
-import 'package:surf_practice_chat_flutter/features/chat/bloc/adding/adding_bloc.dart';
+import 'package:surf_practice_chat_flutter/features/chat/bloc/adding/attach_bloc.dart';
 import 'package:surf_practice_chat_flutter/features/chat/bloc/chat/chat_bloc.dart';
 import 'package:surf_practice_chat_flutter/features/chat/consts.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_message_dto.dart';
@@ -44,7 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ChatBloc(widget.chatRepository, _geolocationRepository),
         ),
         BlocProvider(
-          create: (context) => AddingBloc(_geolocationRepository),
+          create: (context) => AttachBloc(_geolocationRepository),
         ),
       ],
       child: Scaffold(
@@ -65,7 +65,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 BlocBuilder<ChatBloc, ChatState>(builder: (context, state) {
-                  context.read<AddingBloc>().add(const AddingEvent.restore());
+                  context.read<AttachBloc>().add(const AttachEvent.restore());
                   return state is ChatMessage
                       ? _ChatTextField()
                       : ChatAddSomething();
@@ -119,10 +119,10 @@ class _ChatTextField extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: BlocListener<AddingBloc, AddingState>(
-                listenWhen: (prev, curr) => curr is! AddingInitial,
+              child: BlocListener<AttachBloc, AttachState>(
+                listenWhen: (prev, curr) => curr is! AttachInitial,
                 listener: (context, state) {
-                  if (state is AddingPickedGeolocation) {
+                  if (state is AttachPickedGeolocation) {
                     context.read<ChatBloc>().add(
                           ChatEvent.attachGeolocation(state.geolocationDto),
                         );
