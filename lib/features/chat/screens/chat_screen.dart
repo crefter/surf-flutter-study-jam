@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:surf_practice_chat_flutter/core/colors.dart';
+import 'package:surf_practice_chat_flutter/core/consts.dart';
+import 'package:surf_practice_chat_flutter/features/chat/bloc/adding/adding_bloc.dart';
+import 'package:surf_practice_chat_flutter/features/chat/bloc/chat/chat_bloc.dart';
+import 'package:surf_practice_chat_flutter/features/chat/consts.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_message_dto.dart';
+import 'package:surf_practice_chat_flutter/features/chat/models/chat_message_location_dto.dart';
+import 'package:surf_practice_chat_flutter/features/chat/models/chat_mode.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_user_dto.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_user_local_dto.dart';
 import 'package:surf_practice_chat_flutter/features/chat/repository/chat_repository.dart';
+import 'package:surf_practice_chat_flutter/features/chat/repository/geolocation_repository.dart';
+import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/chat_add_something.dart';
 
 /// Main screen of chat app, containing messages.
 class ChatScreen extends StatefulWidget {
@@ -21,48 +31,49 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _nameEditingController = TextEditingController();
-
-  Iterable<ChatMessageDto> _currentMessages = [];
+  final _geolocationRepository = GeolocationRepository();
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.background,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: _ChatAppBar(
-          controller: _nameEditingController,
-          onUpdatePressed: _onUpdatePressed,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) =>
+              ChatBloc(widget.chatRepository, _geolocationRepository),
         ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _ChatBody(
-              messages: _currentMessages,
+        BlocProvider(
+          create: (context) => AddingBloc(_geolocationRepository),
+        ),
+      ],
+      child: Scaffold(
+          backgroundColor: colorScheme.background,
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(ChatConsts.heightAppBar),
+            child: _ChatAppBar(
+              controller: _nameEditingController,
             ),
           ),
-          _ChatTextField(onSendPressed: _onSendPressed),
-        ],
-      ),
+          body: Builder(builder: (ctx) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _ChatBody(
+                    messages: ctx.watch<ChatBloc>().state.currentMessages,
+                  ),
+                ),
+                BlocBuilder<ChatBloc, ChatState>(builder: (context, state) {
+                  context.read<AddingBloc>().add(const AddingEvent.restore());
+                  return state is ChatMessage
+                      ? _ChatTextField()
+                      : ChatAddSomething();
+                }),
+              ],
+            );
+          })),
     );
-  }
-
-  Future<void> _onUpdatePressed() async {
-    final messages = await widget.chatRepository.getMessages();
-    setState(() {
-      _currentMessages = messages;
-    });
-  }
-
-  Future<void> _onSendPressed(String messageText) async {
-    final messages = await widget.chatRepository.sendMessage(messageText);
-    setState(() {
-      _currentMessages = messages;
-    });
   }
 }
 
@@ -86,12 +97,9 @@ class _ChatBody extends StatelessWidget {
 }
 
 class _ChatTextField extends StatelessWidget {
-  final ValueChanged<String> onSendPressed;
-
   final _textEditingController = TextEditingController();
 
   _ChatTextField({
-    required this.onSendPressed,
     Key? key,
   }) : super(key: key);
 
@@ -102,24 +110,53 @@ class _ChatTextField extends StatelessWidget {
 
     return Material(
       color: colorScheme.surface,
-      elevation: 12,
+      elevation: ChatConsts.elevationTextFiled,
       child: Padding(
         padding: EdgeInsets.only(
-          bottom: mediaQuery.padding.bottom + 8,
-          left: 16,
+          bottom: mediaQuery.padding.bottom + ChatConsts.bottomTextFieldPadding,
+          left: ChatConsts.leftTextFieldPadding,
         ),
         child: Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: _textEditingController,
-                decoration: const InputDecoration(
-                  hintText: 'Сообщение',
+              child: BlocListener<AddingBloc, AddingState>(
+                listenWhen: (prev, curr) => curr is! AddingInitial,
+                listener: (context, state) {
+                  if (state is AddingPickedGeolocation) {
+                    context.read<ChatBloc>().add(
+                          ChatEvent.attachGeolocation(state.geolocationDto),
+                        );
+                  }
+                },
+                child: TextField(
+                  controller: _textEditingController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderSide: const BorderSide(),
+                      borderRadius: BorderRadius.circular(
+                        AppConsts.textFormFieldBorderRadius,
+                      ),
+                    ),
+                    hintText: 'Сообщение',
+                  ),
                 ),
               ),
             ),
             IconButton(
-              onPressed: () => onSendPressed(_textEditingController.text),
+              onPressed: () {
+                context.read<ChatBloc>().add(ChatEvent.pick(ChatMode.choose()));
+              },
+              icon: const Icon(
+                Icons.attach_file,
+              ),
+              color: colorScheme.onSurface,
+            ),
+            IconButton(
+              onPressed: () {
+                context
+                    .read<ChatBloc>()
+                    .add(ChatEvent.sendMessage(_textEditingController.text));
+              },
               icon: const Icon(Icons.send),
               color: colorScheme.onSurface,
             ),
@@ -131,11 +168,9 @@ class _ChatTextField extends StatelessWidget {
 }
 
 class _ChatAppBar extends StatelessWidget {
-  final VoidCallback onUpdatePressed;
   final TextEditingController controller;
 
   const _ChatAppBar({
-    required this.onUpdatePressed,
     required this.controller,
     Key? key,
   }) : super(key: key);
@@ -143,11 +178,13 @@ class _ChatAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      backgroundColor: Theme.of(context).primaryColor,
       title: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           IconButton(
-            onPressed: onUpdatePressed,
+            onPressed: () =>
+                context.read<ChatBloc>().add(const ChatEvent.update()),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -168,17 +205,19 @@ class _ChatMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: chatData.chatUserDto is ChatUserLocalDto ? colorScheme.primary.withOpacity(.1) : null,
+      color: chatData.chatUserDto is ChatUserLocalDto
+          ? colorScheme.primary.withOpacity(.1)
+          : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 18,
+          horizontal: ChatConsts.chatMessagePadding,
+          vertical: ChatConsts.chatMessagePadding,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _ChatAvatar(userData: chatData.chatUserDto),
-            const SizedBox(width: 16),
+            const SizedBox(width: ChatConsts.gapBetweenUserAvatarAndMessage),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -187,8 +226,11 @@ class _ChatMessage extends StatelessWidget {
                     chatData.chatUserDto.name ?? '',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 4),
-                  Text(chatData.message ?? ''),
+                  const SizedBox(height: ChatConsts.defaultGapBetweenWidgets),
+                  chatData is ChatMessageGeolocationDto
+                      ? _MessageAndGeolocation(
+                          chatData: chatData as ChatMessageGeolocationDto)
+                      : _OnlyMessage(chatData: chatData),
                 ],
               ),
             ),
@@ -196,6 +238,66 @@ class _ChatMessage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _MessageAndGeolocation extends StatelessWidget {
+  final ChatMessageGeolocationDto chatData;
+
+  const _MessageAndGeolocation({Key? key, required this.chatData})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(chatData.message ?? ''),
+        const SizedBox(
+          height: ChatConsts.defaultGapBetweenWidgets,
+        ),
+        const Text("К этому сообщение приклеплена геометка:"),
+        Text("Долгота: ${chatData.location.longitude.toStringAsFixed(2)}\n "
+            "Широта: ${chatData.location.latitude.toStringAsFixed(2)}"),
+        const SizedBox(
+          height: ChatConsts.defaultGapBetweenWidgets,
+        ),
+        Stack(
+          children: [
+            SizedBox(
+              height: ChatConsts.heightOpenMapButton,
+              child: TextButton(
+                onPressed: () {
+                  context.read<ChatBloc>().add(ChatEvent.openMap(chatData));
+                },
+                child: const Text("Открыть на карте"),
+              ),
+            ),
+            const Positioned(
+              left: ChatConsts.offsetOpenMapPicture,
+              child: Icon(
+                Icons.zoom_out_map,
+                color: AppColors.green,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _OnlyMessage extends StatelessWidget {
+  const _OnlyMessage({
+    Key? key,
+    required this.chatData,
+  }) : super(key: key);
+
+  final ChatMessageDto chatData;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(chatData.message ?? '');
   }
 }
 
@@ -212,7 +314,16 @@ class _ChatAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
+    String firstLetter = '';
+    String secondLetter = '';
+    if (userData.name != null) {
+      if (userData.name!.isNotEmpty) {
+        final split = userData.name?.split(' ');
+        firstLetter = split!.first[0];
+        if (split.last.isNotEmpty && split.first != split.last)
+          secondLetter = split.last[0];
+      }
+    }
     return SizedBox(
       width: _size,
       height: _size,
@@ -221,13 +332,11 @@ class _ChatAvatar extends StatelessWidget {
         shape: const CircleBorder(),
         child: Center(
           child: Text(
-            userData.name != null
-                ? '${userData.name!.split(' ').first[0]}${userData.name!.split(' ').last[0]}'
-                : '',
+            "$firstLetter$secondLetter",
             style: TextStyle(
               color: colorScheme.onPrimary,
               fontWeight: FontWeight.bold,
-              fontSize: 24,
+              fontSize: ChatConsts.fontSizeInAvatar,
             ),
           ),
         ),
