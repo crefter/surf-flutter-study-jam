@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:surf_practice_chat_flutter/core/colors.dart';
 import 'package:surf_practice_chat_flutter/core/consts.dart';
@@ -13,6 +14,7 @@ import 'package:surf_practice_chat_flutter/features/chat/models/chat_user_local_
 import 'package:surf_practice_chat_flutter/features/chat/repository/chat_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/repository/geolocation_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/chat_add_something.dart';
+import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/floating_action_button_widget.dart';
 
 /// Main screen of chat app, containing messages.
 class ChatScreen extends StatefulWidget {
@@ -32,10 +34,42 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _nameEditingController = TextEditingController();
   final _geolocationRepository = GeolocationRepository();
+  late final ScrollController _scrollController;
+  bool _isVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      if (_scrollController.offset <
+          _scrollController.position.maxScrollExtent - 1000) {
+        if (!_isVisible) {
+          setState(() {
+            _isVisible = true;
+          });
+        }
+      } else {
+        if (_isVisible) {
+          setState(() {
+            _isVisible = false;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme
+        .of(context)
+        .colorScheme;
 
     return MultiBlocProvider(
       providers: [
@@ -48,6 +82,14 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ],
       child: Scaffold(
+          floatingActionButton: Padding(
+            padding: const EdgeInsets.only(bottom: 70.0),
+            child: _isVisible
+                ? FloatingActionButtonWidget(
+                scrollController: _scrollController)
+                : null,
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           backgroundColor: colorScheme.background,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(ChatConsts.heightAppBar),
@@ -61,7 +103,11 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 Expanded(
                   child: _ChatBody(
-                    messages: ctx.watch<ChatBloc>().state.currentMessages,
+                    scrollController: _scrollController,
+                    messages: ctx
+                        .watch<ChatBloc>()
+                        .state
+                        .currentMessages,
                   ),
                 ),
                 BlocBuilder<ChatBloc, ChatState>(builder: (context, state) {
@@ -79,19 +125,25 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class _ChatBody extends StatelessWidget {
   final Iterable<ChatMessageDto> messages;
+  final ScrollController _scrollController;
 
   const _ChatBody({
     required this.messages,
     Key? key,
-  }) : super(key: key);
+    required ScrollController scrollController,
+  })
+      : _scrollController = scrollController,
+        super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      controller: _scrollController,
       itemCount: messages.length,
-      itemBuilder: (_, index) => _ChatMessage(
-        chatData: messages.elementAt(index),
-      ),
+      itemBuilder: (_, index) =>
+          _ChatMessage(
+            chatData: messages.elementAt(index),
+          ),
     );
   }
 }
@@ -106,7 +158,9 @@ class _ChatTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme
+        .of(context)
+        .colorScheme;
 
     return Material(
       color: colorScheme.surface,
@@ -124,8 +178,8 @@ class _ChatTextField extends StatelessWidget {
                 listener: (context, state) {
                   if (state is AttachPickedGeolocation) {
                     context.read<ChatBloc>().add(
-                          ChatEvent.attachGeolocation(state.geolocationDto),
-                        );
+                      ChatEvent.attachGeolocation(state.geolocationDto),
+                    );
                   }
                 },
                 child: TextField(
@@ -156,6 +210,7 @@ class _ChatTextField extends StatelessWidget {
                 context
                     .read<ChatBloc>()
                     .add(ChatEvent.sendMessage(_textEditingController.text));
+                _textEditingController.text = "";
               },
               icon: const Icon(Icons.send),
               color: colorScheme.onSurface,
@@ -178,7 +233,9 @@ class _ChatAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: Theme
+          .of(context)
+          .primaryColor,
       title: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -203,7 +260,9 @@ class _ChatMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme
+        .of(context)
+        .colorScheme;
     return Material(
       color: chatData.chatUserDto is ChatUserLocalDto
           ? colorScheme.primary.withOpacity(.1)
@@ -229,7 +288,7 @@ class _ChatMessage extends StatelessWidget {
                   const SizedBox(height: ChatConsts.defaultGapBetweenWidgets),
                   chatData is ChatMessageGeolocationDto
                       ? _MessageAndGeolocation(
-                          chatData: chatData as ChatMessageGeolocationDto)
+                      chatData: chatData as ChatMessageGeolocationDto)
                       : _OnlyMessage(chatData: chatData),
                 ],
               ),
@@ -313,7 +372,9 @@ class _ChatAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme
+        .of(context)
+        .colorScheme;
     String firstLetter = '';
     String secondLetter = '';
     if (userData.name != null) {
