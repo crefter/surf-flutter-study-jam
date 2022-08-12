@@ -1,3 +1,3 @@
 abstract class IRead<T> {
-  Future<T> read();
+  Future<T> read(String key);
 }

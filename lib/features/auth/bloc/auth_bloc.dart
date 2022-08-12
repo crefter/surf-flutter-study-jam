@@ -34,7 +34,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final password = event.password;
       final token =
           await _authRepository.signIn(login: login, password: password);
-      _tokenRepository.write(token);
+      _tokenRepository.write("", token);
       emit(AuthState.success(token));
     } on AuthException catch (e) {
       emit(AuthState.error(e.message));

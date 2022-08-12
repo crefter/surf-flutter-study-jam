@@ -5,7 +5,9 @@ import 'package:surf_practice_chat_flutter/features/auth/consts.dart';
 import 'package:surf_practice_chat_flutter/features/auth/models/token_dto.dart';
 import 'package:surf_practice_chat_flutter/features/auth/screens/widgets/auth_text_field.dart';
 import 'package:surf_practice_chat_flutter/features/chat/repository/chat_repository.dart';
+import 'package:surf_practice_chat_flutter/features/chat/repository/user_color_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/chat_screen.dart';
+import 'package:surf_practice_chat_flutter/features/chat/service/user_color_service.dart';
 import 'package:surf_study_jam/surf_study_jam.dart';
 import '../bloc/auth_bloc.dart';
 import 'colors.dart' as colors;
@@ -144,6 +146,7 @@ class _AuthScreenState extends State<AuthScreen> {
       MaterialPageRoute(
         builder: (_) {
           return ChatScreen(
+            colorService: UserColorService(UserColorRepository()),
             chatRepository: ChatRepository(
               StudyJamClient().getAuthorizedClient(token.token),
             ),

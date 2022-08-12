@@ -15,16 +15,19 @@ import 'package:surf_practice_chat_flutter/features/chat/repository/chat_reposit
 import 'package:surf_practice_chat_flutter/features/chat/repository/geolocation_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/chat_add_something.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/floating_action_button_widget.dart';
+import 'package:surf_practice_chat_flutter/features/chat/service/user_color_service.dart';
 
 /// Main screen of chat app, containing messages.
 class ChatScreen extends StatefulWidget {
   /// Repository for chat functionality.
   final IChatRepository chatRepository;
+  final UserColorService colorService;
 
   /// Constructor for [ChatScreen].
   const ChatScreen({
     required this.chatRepository,
     Key? key,
+    required this.colorService,
   }) : super(key: key);
 
   @override
@@ -67,9 +70,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme
-        .of(context)
-        .colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return MultiBlocProvider(
       providers: [
@@ -86,7 +87,7 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.only(bottom: 70.0),
             child: _isVisible
                 ? FloatingActionButtonWidget(
-                scrollController: _scrollController)
+                    scrollController: _scrollController)
                 : null,
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -103,11 +104,9 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 Expanded(
                   child: _ChatBody(
+                    userColorService: widget.colorService,
                     scrollController: _scrollController,
-                    messages: ctx
-                        .watch<ChatBloc>()
-                        .state
-                        .currentMessages,
+                    messages: ctx.watch<ChatBloc>().state.currentMessages,
                   ),
                 ),
                 BlocBuilder<ChatBloc, ChatState>(builder: (context, state) {
@@ -126,13 +125,15 @@ class _ChatScreenState extends State<ChatScreen> {
 class _ChatBody extends StatelessWidget {
   final Iterable<ChatMessageDto> messages;
   final ScrollController _scrollController;
+  final UserColorService _userColorService;
 
   const _ChatBody({
     required this.messages,
     Key? key,
     required ScrollController scrollController,
-  })
-      : _scrollController = scrollController,
+    required UserColorService userColorService,
+  })  : _scrollController = scrollController,
+        _userColorService = userColorService,
         super(key: key);
 
   @override
@@ -140,10 +141,10 @@ class _ChatBody extends StatelessWidget {
     return ListView.builder(
       controller: _scrollController,
       itemCount: messages.length,
-      itemBuilder: (_, index) =>
-          _ChatMessage(
-            chatData: messages.elementAt(index),
-          ),
+      itemBuilder: (_, index) => _ChatMessage(
+        userColorService: _userColorService,
+        chatData: messages.elementAt(index),
+      ),
     );
   }
 }
@@ -158,9 +159,7 @@ class _ChatTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final colorScheme = Theme
-        .of(context)
-        .colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
       color: colorScheme.surface,
@@ -178,8 +177,8 @@ class _ChatTextField extends StatelessWidget {
                 listener: (context, state) {
                   if (state is AttachPickedGeolocation) {
                     context.read<ChatBloc>().add(
-                      ChatEvent.attachGeolocation(state.geolocationDto),
-                    );
+                          ChatEvent.attachGeolocation(state.geolocationDto),
+                        );
                   }
                 },
                 child: TextField(
@@ -233,9 +232,7 @@ class _ChatAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: Theme
-          .of(context)
-          .primaryColor,
+      backgroundColor: Theme.of(context).primaryColor,
       title: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -252,17 +249,17 @@ class _ChatAppBar extends StatelessWidget {
 
 class _ChatMessage extends StatelessWidget {
   final ChatMessageDto chatData;
+  final UserColorService userColorService;
 
   const _ChatMessage({
     required this.chatData,
     Key? key,
+    required this.userColorService,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme
-        .of(context)
-        .colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
       color: chatData.chatUserDto is ChatUserLocalDto
           ? colorScheme.primary.withOpacity(.1)
@@ -275,7 +272,10 @@ class _ChatMessage extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ChatAvatar(userData: chatData.chatUserDto),
+            _ChatAvatar(
+              userData: chatData.chatUserDto,
+              colorService: userColorService,
+            ),
             const SizedBox(width: ChatConsts.gapBetweenUserAvatarAndMessage),
             Expanded(
               child: Column(
@@ -288,7 +288,7 @@ class _ChatMessage extends StatelessWidget {
                   const SizedBox(height: ChatConsts.defaultGapBetweenWidgets),
                   chatData is ChatMessageGeolocationDto
                       ? _MessageAndGeolocation(
-                      chatData: chatData as ChatMessageGeolocationDto)
+                          chatData: chatData as ChatMessageGeolocationDto)
                       : _OnlyMessage(chatData: chatData),
                 ],
               ),
@@ -364,17 +364,17 @@ class _ChatAvatar extends StatelessWidget {
   static const double _size = 42;
 
   final ChatUserDto userData;
+  final UserColorService colorService;
 
   const _ChatAvatar({
     required this.userData,
     Key? key,
+    required this.colorService,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme
-        .of(context)
-        .colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     String firstLetter = '';
     String secondLetter = '';
     if (userData.name != null) {
@@ -388,20 +388,35 @@ class _ChatAvatar extends StatelessWidget {
     return SizedBox(
       width: _size,
       height: _size,
-      child: Material(
-        color: colorScheme.primary,
-        shape: const CircleBorder(),
-        child: Center(
-          child: Text(
-            "$firstLetter$secondLetter",
-            style: TextStyle(
-              color: colorScheme.onPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: ChatConsts.fontSizeInAvatar,
-            ),
-          ),
-        ),
-      ),
+      child: FutureBuilder(
+          future: colorService.getColorBy(userData.name ?? ''),
+          builder: (context, snapshot) {
+            List<int> color = [0, 0, 0];
+            if (snapshot.hasData) {
+              final str = snapshot.data as String;
+              color = [
+                int.parse(str.substring(0, 2), radix: 16),
+                int.parse(str.substring(2, 4), radix: 16),
+                int.parse(str.substring(4, 6), radix: 16),
+              ];
+              return Material(
+                color: Color.fromARGB(255, color[0], color[1], color[2]),
+                shape: const CircleBorder(),
+                child: Center(
+                  child: Text(
+                    "$firstLetter$secondLetter",
+                    style: TextStyle(
+                      color: colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: ChatConsts.fontSizeInAvatar,
+                    ),
+                  ),
+                ),
+              );
+            } else {
+              return const CircularProgressIndicator();
+            }
+          }),
     );
   }
 }

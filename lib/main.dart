@@ -9,7 +9,9 @@ import 'package:surf_practice_chat_flutter/features/auth/repository/token_reposi
 import 'package:surf_practice_chat_flutter/features/auth/screens/auth_screen.dart';
 import 'package:surf_practice_chat_flutter/features/auth/storages/local_secure_storage.dart';
 import 'package:surf_practice_chat_flutter/features/chat/repository/chat_repository.dart';
+import 'package:surf_practice_chat_flutter/features/chat/repository/user_color_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/chat_screen.dart';
+import 'package:surf_practice_chat_flutter/features/chat/service/user_color_service.dart';
 import 'package:surf_study_jam/surf_study_jam.dart';
 
 void main() async {
@@ -17,7 +19,7 @@ void main() async {
   late final TokenDto? token;
   late final StudyJamClient? client;
   try {
-    token = await TokenRepository(LocalSecureStorage()).read();
+    token = await TokenRepository(LocalSecureStorage()).read('');
   } on SecureStorageException {
     token = null;
   }
@@ -52,7 +54,10 @@ class MyApp extends StatelessWidget {
             colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.green)),
         home: client == null
             ? const AuthScreen()
-            : ChatScreen(chatRepository: ChatRepository(client!)),
+            : ChatScreen(
+                chatRepository: ChatRepository(client!),
+                colorService: UserColorService(UserColorRepository()),
+              ),
       ),
     );
   }

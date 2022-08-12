@@ -15,12 +15,12 @@ class TokenRepository implements ITokenRepository {
   TokenRepository(this._secureStorage);
 
   @override
-  Future<TokenDto> read() async {
+  Future<TokenDto> read(_) async {
     return TokenDto(token: await _secureStorage.read(key));
   }
 
   @override
-  Future<void> write(TokenDto value) async {
+  Future<void> write(_, TokenDto value) async {
     await _secureStorage.write(key, value.token);
   }
 

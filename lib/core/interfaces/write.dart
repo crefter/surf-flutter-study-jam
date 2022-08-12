@@ -1,3 +1,3 @@
 abstract class IWrite<T> {
-  Future<void> write(T value);
+  Future<void> write(String key, T value);
 }
