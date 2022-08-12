@@ -5,8 +5,15 @@ class ChatState with _$ChatState {
   const factory ChatState.message(
       final Iterable<ChatMessageDto> currentMessages,
       ChatGeolocationDto geolocationDto,
-      ChatMode mode) = ChatMessage;
+      ChatMode mode,
+      int chatId,
+      String message) = ChatMessage;
 
-  const factory ChatState.choose(final Iterable<ChatMessageDto> currentMessages,
-      ChatGeolocationDto geolocationDto, ChatMode mode) = ChatChoose;
+  const factory ChatState.choose(
+    final Iterable<ChatMessageDto> currentMessages,
+    ChatGeolocationDto geolocationDto,
+    ChatMode mode,
+    int chatId,
+    String message,
+  ) = ChatChoose;
 }

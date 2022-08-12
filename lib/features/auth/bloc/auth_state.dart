@@ -8,5 +8,6 @@ class AuthState with _$AuthState {
 
   const factory AuthState.inProgress() = AuthStateInProgress;
 
-  const factory AuthState.success(final TokenDto token) = AuthStateSuccess;
+  const factory AuthState.success(final TokenDto token, final String userName,
+      final StudyJamClient client) = AuthStateSuccess;
 }

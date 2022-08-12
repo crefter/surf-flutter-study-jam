@@ -4,4 +4,6 @@ part of 'auth_bloc.dart';
 class AuthEvent with _$AuthEvent {
   const factory AuthEvent.logIn(final String login, final String password) =
       AuthEventLogIn;
+
+  const factory AuthEvent.logOut() = AuthEventLogOut;
 }

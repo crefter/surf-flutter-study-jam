@@ -5,8 +5,8 @@ abstract class ChatConsts {
   static const double bottomTextFieldPadding = 8;
   static const double chatMessagePadding = 18;
   static const double gapBetweenUserAvatarAndMessage = 16;
-  static const double defaultGapBetweenWidgets = 4;
   static const double heightOpenMapButton = 60;
   static const double offsetOpenMapPicture = 60;
   static const double fontSizeInAvatar = 24;
+  static const double topTextFieldPadding = 10;
 }

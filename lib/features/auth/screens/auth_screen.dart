@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:surf_practice_chat_flutter/core/colors.dart';
 import 'package:surf_practice_chat_flutter/core/consts.dart';
+import 'package:surf_practice_chat_flutter/core/widgets/my_text_field.dart';
 import 'package:surf_practice_chat_flutter/features/auth/consts.dart';
 import 'package:surf_practice_chat_flutter/features/auth/models/token_dto.dart';
-import 'package:surf_practice_chat_flutter/features/auth/screens/widgets/auth_text_field.dart';
-import 'package:surf_practice_chat_flutter/features/chat/repository/chat_repository.dart';
-import 'package:surf_practice_chat_flutter/features/chat/repository/user_color_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/chat_screen.dart';
-import 'package:surf_practice_chat_flutter/features/chat/service/user_color_service.dart';
+import 'package:surf_practice_chat_flutter/features/topics/bloc/topics_bloc.dart';
+import 'package:surf_practice_chat_flutter/features/topics/repository/chart_topics_repository.dart';
+import 'package:surf_practice_chat_flutter/features/topics/screens/topics_screen.dart';
 import 'package:surf_study_jam/surf_study_jam.dart';
 import '../bloc/auth_bloc.dart';
 import 'colors.dart' as colors;
@@ -54,7 +55,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: ColoredBox(
-        color: colors.Colors.white,
+        color: colors.AuthColors.white,
         child: BlocConsumer<AuthBloc, AuthState>(
           listenWhen: (prev, curr) =>
               curr is AuthStateError || curr is AuthStateSuccess,
@@ -65,7 +66,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   final theme = Theme.of(context)
                       .textTheme
                       .titleLarge
-                      ?.copyWith(color: colors.Colors.white);
+                      ?.copyWith(color: colors.AuthColors.white);
                   return ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       padding: EdgeInsets.zero,
@@ -73,11 +74,10 @@ class _AuthScreenState extends State<AuthScreen> {
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           Container(
-                            color: colors.Colors.tangoPink,
-                            width:
-                                _screenWidth / AuthConsts.widthSnackBarFactor,
+                            color: AppColors.tangoPink,
+                            width: _screenWidth / AppConsts.widthSnackBarFactor,
                             height:
-                                _screenHeight / AuthConsts.heightSnackBarFactor,
+                                _screenHeight / AppConsts.heightSnackBarFactor,
                           ),
                           const Padding(
                             padding: EdgeInsets.only(
@@ -86,7 +86,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             child: Icon(
                               Icons.error,
-                              color: colors.Colors.tangoPink,
+                              color: AppColors.tangoPink,
                             ),
                           ),
                           Text(
@@ -94,7 +94,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 notAuth: () => "",
                                 error: (message) => message,
                                 inProgress: () => "",
-                                success: (_) => ""),
+                                success: (_, __, ___) => ""),
                             style: theme,
                           )
                         ],
@@ -103,20 +103,20 @@ class _AuthScreenState extends State<AuthScreen> {
                   );
                 },
                 inProgress: () => null,
-                success: (token) {
-                  _pushToChat(context, token);
+                success: (token, userName, client) {
+                  _pushToChat(context, token, userName, client);
                 });
           },
           builder: (context, state) {
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AuthTextField(
+                MyTextField(
                   label: "Логин",
                   icon: Icons.account_circle_outlined,
                   controller: _loginController,
                 ),
-                AuthTextField(
+                MyTextField(
                   label: "Пароль",
                   icon: Icons.lock,
                   isPassword: true,
@@ -140,15 +140,25 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  void _pushToChat(BuildContext context, TokenDto token) {
+  void _pushToChat(
+    BuildContext context,
+    TokenDto token,
+    String userName,
+    StudyJamClient client,
+  ) {
     Navigator.push<ChatScreen>(
       context,
       MaterialPageRoute(
-        builder: (_) {
-          return ChatScreen(
-            colorService: UserColorService(UserColorRepository()),
-            chatRepository: ChatRepository(
-              StudyJamClient().getAuthorizedClient(token.token),
+        builder: (context) {
+          return BlocProvider(
+            create: (context) => TopicsBloc(ChatTopicsRepository(client)),
+            child: Builder(
+              builder: (context) {
+                context.read<TopicsBloc>().add(TopicsEvent.open(userName));
+                return TopicsScreen(
+                  client: client,
+                );
+              },
             ),
           );
         },
@@ -179,7 +189,7 @@ class _ButtonNext extends StatelessWidget {
       child: ElevatedButton(
           style: ButtonStyle(
             backgroundColor:
-                MaterialStateProperty.all<Color>(colors.Colors.green),
+                MaterialStateProperty.all<Color>(colors.AuthColors.green),
           ),
           onPressed: () {
             context.read<AuthBloc>().add(

@@ -6,7 +6,7 @@ class ChatEvent with _$ChatEvent {
 
   const factory ChatEvent.back() = ChatBack;
 
-  const factory ChatEvent.update() = ChatUpdate;
+  const factory ChatEvent.update(int chatId) = ChatUpdate;
 
   const factory ChatEvent.sendMessage(
     String message,
