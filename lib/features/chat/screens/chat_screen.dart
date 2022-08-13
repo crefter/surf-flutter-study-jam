@@ -14,11 +14,11 @@ import 'package:surf_practice_chat_flutter/features/chat/models/chat_message_dto
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_message_location_dto.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_mode.dart';
 import 'package:surf_practice_chat_flutter/features/chat/models/chat_user_dto.dart';
-import 'package:surf_practice_chat_flutter/features/chat/models/chat_user_local_dto.dart';
 import 'package:surf_practice_chat_flutter/features/chat/repository/geolocation_repository.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/chat_add_something.dart';
 import 'package:surf_practice_chat_flutter/features/chat/screens/widgets/floating_action_button_widget.dart';
 import 'package:surf_practice_chat_flutter/features/chat/service/user_color_service.dart';
+import 'package:surf_practice_chat_flutter/features/topics/repository/user_repository.dart';
 
 /// Main screen of chat app, containing messages.
 class ChatScreen extends StatefulWidget {
@@ -143,6 +143,7 @@ class _ChatBody extends StatelessWidget {
                 itemBuilder: (_, index) => _ChatMessage(
                   userColorService: _userColorService,
                   chatData: state.currentMessages.elementAt(index),
+                  userRepository: UserRepository(),
                 ),
               )
             : const Center(
@@ -285,68 +286,93 @@ class _ChatAppBar extends StatelessWidget {
   }
 }
 
-class _ChatMessage extends StatelessWidget {
+class _ChatMessage extends StatefulWidget {
   final ChatMessageDto chatData;
   final UserColorService userColorService;
+  final UserRepository _userRepository;
 
   const _ChatMessage({
     required this.chatData,
     Key? key,
     required this.userColorService,
-  }) : super(key: key);
+    required UserRepository userRepository,
+  })  : _userRepository = userRepository,
+        super(key: key);
+
+  @override
+  State<_ChatMessage> createState() => _ChatMessageState();
+}
+
+class _ChatMessageState extends State<_ChatMessage> {
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return ChatBubble(
-      margin: const EdgeInsets.only(top: 20),
-      alignment: chatData.chatUserDto is ChatUserLocalDto
-          ? Alignment.topRight
-          : Alignment.topLeft,
-      clipper: chatData.chatUserDto is ChatUserLocalDto
-          ? ChatBubbleClipper1(type: BubbleType.sendBubble)
-          : ChatBubbleClipper1(type: BubbleType.receiverBubble),
-      backGroundColor: chatData.chatUserDto is ChatUserLocalDto
-          ? colorScheme.primary
-          : AppColors.teal,
-      child: Container(
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-        child: Padding(
-          padding: const EdgeInsets.only(
-            top: ChatConsts.chatMessagePadding,
-            left: ChatConsts.chatMessagePadding,
-            right: ChatConsts.chatMessagePadding,
-            bottom: AppConsts.zero,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ChatAvatar(
-                userData: chatData.chatUserDto,
-                colorService: userColorService,
-              ),
-              const SizedBox(width: ChatConsts.gapBetweenUserAvatarAndMessage),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+    return FutureBuilder<String>(
+      future: widget._userRepository.read(''),
+      builder: (context, data) {
+        if (data.hasData) {
+          bool isChatUserLocalDto =
+              widget.chatData.chatUserDto.name == data.data;
+          return ChatBubble(
+            margin: const EdgeInsets.only(top: 20),
+            alignment:
+                isChatUserLocalDto ? Alignment.topRight : Alignment.topLeft,
+            clipper: isChatUserLocalDto
+                ? ChatBubbleClipper1(type: BubbleType.sendBubble)
+                : ChatBubbleClipper1(type: BubbleType.receiverBubble),
+            backGroundColor:
+                isChatUserLocalDto ? colorScheme.primary : AppColors.teal,
+            child: Container(
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.7),
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  top: ChatConsts.chatMessagePadding,
+                  left: ChatConsts.chatMessagePadding,
+                  right: ChatConsts.chatMessagePadding,
+                  bottom: AppConsts.zero,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      chatData.chatUserDto.name ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    _ChatAvatar(
+                      userData: widget.chatData.chatUserDto,
+                      colorService: widget.userColorService,
                     ),
-                    const SizedBox(height: AppConsts.defaultGapBetweenWidgets),
-                    chatData is ChatMessageGeolocationDto
-                        ? _MessageAndGeolocation(
-                            chatData: chatData as ChatMessageGeolocationDto)
-                        : _OnlyMessage(chatData: chatData),
+                    const SizedBox(
+                        width: ChatConsts.gapBetweenUserAvatarAndMessage),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            widget.chatData.chatUserDto.name ?? '',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(
+                              height: AppConsts.defaultGapBetweenWidgets),
+                          widget.chatData is ChatMessageGeolocationDto
+                              ? _MessageAndGeolocation(
+                                  chatData: widget.chatData
+                                      as ChatMessageGeolocationDto)
+                              : _OnlyMessage(chatData: widget.chatData),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
+          );
+        } else {
+          return const SizedBox.shrink();
+        }
+      },
     );
   }
 }
